@@ -63,5 +63,5 @@ Open app.py
 
 Replace this line with your actual key.
 
-<img width="1920" height="925" alt="image" src="https://github.com/user-attachments/assets/40916f3d-e9d8-4041-9360-4029557b6430" />
+
 
