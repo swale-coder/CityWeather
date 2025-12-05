@@ -70,8 +70,8 @@ jobs:
         run: |
           sonar-scanner `
             -D"sonar.organization=swale-coder" `
-            -D"sonar.projectKey=weather-guru" `
-            -D"sonar.projectName=Weather Guru" `
+            -D"sonar.projectKey=CityWeather " `
+            -D"sonar.projectName=CityWeather " `
             -D"sonar.sources=." `
             -D"sonar.python.version=3.9" `
             -D"sonar.host.url=$env:SONAR_HOST_URL" `
