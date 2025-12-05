@@ -9,16 +9,18 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for better analysis
+      
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
-
+      
       - name: Install dependencies
         shell: pwsh
         run: |
@@ -28,19 +30,35 @@ jobs:
           } else {
             pip install Flask
           }
-
+      
       - name: Run syntax check
         shell: pwsh
         run: python -m py_compile app.py
-
-      # ⭐ FIXED SONARSCANNER INSTALLATION
+      
       - name: Install SonarScanner manually
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-windows.zip" -OutFile "sonar.zip"
           Expand-Archive sonar.zip -DestinationPath "$env:USERPROFILE\sonarscanner"
           echo "$env:USERPROFILE\sonarscanner\sonar-scanner-5.0.1.3006-windows\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
+      
+      - name: Verify SonarQube secrets
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SONAR_TOKEN)) {
+            Write-Error "SONAR_TOKEN secret is not set or is empty"
+            exit 1
+          }
+          if ([string]::IsNullOrWhiteSpace($env:SONAR_HOST_URL)) {
+            Write-Error "SONAR_HOST_URL secret is not set or is empty"
+            exit 1
+          }
+          Write-Host "✅ SONAR_HOST_URL is set to: $env:SONAR_HOST_URL"
+          Write-Host "✅ SONAR_TOKEN is set (length: $($env:SONAR_TOKEN.Length))"
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      
       - name: Run SonarQube Scan
         shell: pwsh
         env:
@@ -48,9 +66,9 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         run: |
           sonar-scanner `
-            -D"sonar.projectKey=weather-guru" `
-            -D"sonar.projectName=Weather Guru" `
-            -D"sonar.sources=." `
-            -D"sonar.python.version=3.9" `
-            -D"sonar.host.url=$env:SONAR_HOST_URL" `
-            -D"sonar.login=$env:SONAR_TOKEN"
+            -Dsonar.projectKey=weather-guru `
+            -Dsonar.projectName="Weather Guru" `
+            -Dsonar.sources=. `
+            -Dsonar.python.version=3.9 `
+            -Dsonar.host.url=$env:SONAR_HOST_URL `
+            -Dsonar.token=$env:SONAR_TOKEN
