@@ -1,4 +1,4 @@
-name: Python Flask CI
+name: Python Flask CI with SonarQube
 
 on:
   push:
@@ -28,3 +28,22 @@ jobs:
       - name: Run syntax check
         run: |
           python -m py_compile app.py
+
+      # ---------------------------------------------------
+      # SONARQUBE SCANNER SETUP & ANALYSIS
+      # ---------------------------------------------------
+      - name: Setup SonarQube Scanner
+        uses: warchant/setup-sonar-scanner@v3
+
+      - name: Run SonarQube Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          sonar-scanner `
+            -Dsonar.projectKey=weather-guru `
+            -Dsonar.projectName="Weather Guru" `
+            -Dsonar.sources=. `
+            -Dsonar.python.version=3.9 `
+            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} `
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
