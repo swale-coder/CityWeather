@@ -8,9 +8,9 @@ on:
 
 jobs:
   build:
-    name: Python Build & Test on Windows
+    name: Python Build, Test & SonarCloud Analysis
     runs-on: windows-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -46,5 +46,28 @@ jobs:
           )
         continue-on-error: true
 
-      # Optional: Upload coverage report to SonarCloud
-      # SonarCloud will pick this up automatically if Automatic Analysis is enabled
+      - name: Install SonarScanner CLI
+        run: |
+          choco install sonarscanner -y
+
+      - name: Run SonarCloud Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.NEW_SONAR_TOKEN }}
+        run: |
+          sonar-scanner ^
+            -Dsonar.organization=swale-coder ^
+            -Dsonar.projectKey=swale-coder_CityWeather ^
+            -Dsonar.projectName=CityWeather ^
+            -Dsonar.sources=. ^
+            -Dsonar.python.version=3.9 ^
+            -Dsonar.exclusions=**/*.zip,**/*.pyc,**/venv/**,**/__pycache__/**,**/.git/**,**/node_modules/** ^
+            -Dsonar.python.coverage.reportPaths=coverage.xml ^
+            -Dsonar.host.url=https://sonarcloud.io ^
+            -Dsonar.login=%SONAR_TOKEN%
+
+      - name: Check SonarCloud Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.NEW_SONAR_TOKEN }}
+        continue-on-error: true
