@@ -68,12 +68,12 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         run: |
-         sonar-scanner `
-         -D"sonar.organization=swale-coder" `
-         -D"sonar.projectKey=CityWeather" `
-         -D"sonar.projectName=CityWeather" `
-         -D"sonar.sources=." `
-         -D"sonar.python.version=3.9" `
-         -D"sonar.host.url=$env:SONAR_HOST_URL" `
-         -D"sonar.login=$env:SONAR_TOKEN"
+              sonar-scanner `
+              -D"sonar.organization=swale-coder" `
+              -D"sonar.projectKey=swale-coder_CityWeather" `
+              -D"sonar.projectName=CityWeather" `
+              -D"sonar.sources=." `
+              -D"sonar.python.version=3.9" `
+              -D"sonar.host.url=$env:SONAR_HOST_URL" `
+              -D"sonar.login=$env:SONAR_TOKEN"
 
