@@ -1,4 +1,4 @@
-name: Python Flask CI + SonarQube
+name: Python Flask CI + SonarCloud
 
 on:
   push:
@@ -8,13 +8,13 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Disable shallow clone for better analysis
       
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -22,58 +22,35 @@ jobs:
           python-version: "3.9"
       
       - name: Install dependencies
-        shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          if (Test-Path requirements.txt) {
+          if [ -f requirements.txt ]; then
             pip install -r requirements.txt
-          } else {
+          else
             pip install Flask
-          }
+          fi
       
       - name: Run syntax check
-        shell: pwsh
         run: python -m py_compile app.py
       
-      - name: Install SonarScanner
-        shell: pwsh
+      - name: Run tests (if available)
         run: |
-          Invoke-WebRequest -Uri "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-windows.zip" -OutFile "sonar.zip"
-          Expand-Archive sonar.zip -DestinationPath "$env:USERPROFILE\sonarscanner"
-          echo "$env:USERPROFILE\sonarscanner\sonar-scanner-5.0.1.3006-windows\bin" >> $env:GITHUB_PATH
+          if [ -f tests/test_app.py ]; then
+            pip install pytest pytest-cov
+            pytest --cov=. --cov-report=xml
+          fi
+        continue-on-error: true
       
-      - name: Verify SonarScanner installation
-        run: sonar-scanner -v
-      
-      - name: Verify SonarQube secrets
-        shell: pwsh
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:SONAR_TOKEN)) {
-            Write-Error "❌ SONAR_TOKEN secret is missing!"
-            exit 1
-          }
-          if ([string]::IsNullOrWhiteSpace($env:SONAR_HOST_URL)) {
-            Write-Error "❌ SONAR_HOST_URL secret is missing!"
-            exit 1
-          }
-          Write-Host "✅ SONAR_HOST_URL loaded"
-          Write-Host "✅ SONAR_TOKEN loaded (Length: $($env:SONAR_TOKEN.Length))"
-      
-      - name: Run SonarQube Scan
-        shell: pwsh
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        run: |
-              sonar-scanner `
-              -D"sonar.organization=swale-coder" `
-              -D"sonar.projectKey=swale-coder_CityWeather" `
-              -D"sonar.projectName=CityWeather" `
-              -D"sonar.sources=." `
-              -D"sonar.python.version=3.9" `
-              -D"sonar.host.url=$env:SONAR_HOST_URL" `
-              -D"sonar.login=$env:SONAR_TOKEN"
-
+        with:
+          args: >
+            -Dsonar.organization=swale-coder
+            -Dsonar.projectKey=swale-coder_CityWeather
+            -Dsonar.python.version=3.9
+            -Dsonar.sources=.
+            -Dsonar.exclusions=**/*.zip,**/*.pyc,**/venv/**,**/__pycache__/**,**/.git/**
+            -Dsonar.python.coverage.reportPaths=coverage.xml
