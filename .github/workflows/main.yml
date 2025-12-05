@@ -14,7 +14,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for better analysis
+          fetch-depth: 0  # Required for Sonar analysis
       
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -44,20 +44,20 @@ jobs:
       
       - name: Verify SonarQube secrets
         shell: pwsh
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:SONAR_TOKEN)) {
-            Write-Error "SONAR_TOKEN secret is not set or is empty"
-            exit 1
-          }
-          if ([string]::IsNullOrWhiteSpace($env:SONAR_HOST_URL)) {
-            Write-Error "SONAR_HOST_URL secret is not set or is empty"
-            exit 1
-          }
-          Write-Host "✅ SONAR_HOST_URL is set to: $env:SONAR_HOST_URL"
-          Write-Host "✅ SONAR_TOKEN is set (length: $($env:SONAR_TOKEN.Length))"
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SONAR_TOKEN)) {
+            Write-Error "❌ SONAR_TOKEN secret is missing!"
+            exit 1
+          }
+          if ([string]::IsNullOrWhiteSpace($env:SONAR_HOST_URL)) {
+            Write-Error "❌ SONAR_HOST_URL secret is missing!"
+            exit 1
+          }
+          Write-Host "✅ SONAR_HOST_URL loaded"
+          Write-Host "✅ SONAR_TOKEN loaded (Length: $($env:SONAR_TOKEN.Length))"
       
       - name: Run SonarQube Scan
         shell: pwsh
@@ -71,4 +71,4 @@ jobs:
             -Dsonar.sources=. `
             -Dsonar.python.version=3.9 `
             -Dsonar.host.url=$env:SONAR_HOST_URL `
-            -Dsonar.token=$env:SONAR_TOKEN
+            -Dsonar.login=$env:SONAR_TOKEN
