@@ -11,23 +11,14 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # -------------------------
-      # Checkout Repository
-      # -------------------------
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # -------------------------
-      # Setup Python
-      # -------------------------
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
 
-      # -------------------------
-      # Install Dependencies
-      # -------------------------
       - name: Install dependencies
         shell: pwsh
         run: |
@@ -38,21 +29,17 @@ jobs:
             pip install Flask
           }
 
-      # -------------------------
-      # Syntax Check
-      # -------------------------
-      - name: Run Python Syntax Check
+      - name: Run syntax check
         shell: pwsh
-        run: |
-          python -m py_compile app.py
+        run: python -m py_compile app.py
 
-      # -------------------------
-      # SONARQUBE SCAN
-      # -------------------------
-      - name: Install SonarScanner
+      # ⭐ FIXED SONARSCANNER INSTALLATION
+      - name: Install SonarScanner manually
         shell: pwsh
         run: |
-          choco install sonarscanner -y
+          Invoke-WebRequest -Uri "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-windows.zip" -OutFile "sonar.zip"
+          Expand-Archive sonar.zip -DestinationPath "$env:USERPROFILE\sonarscanner"
+          echo "$env:USERPROFILE\sonarscanner\sonar-scanner-5.0.1.3006-windows\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Run SonarQube Scan
         shell: pwsh
@@ -60,11 +47,10 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         run: |
-            sonar-scanner ^
-            -Dsonar.projectKey=weather-guru ^
-            -Dsonar.projectName="Weather Guru" ^
-            -Dsonar.sources=. ^
-            -Dsonar.python.version=3.9 ^
-            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} ^
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
-             shell: pwsh
+          sonar-scanner `
+            -D"sonar.projectKey=weather-guru" `
+            -D"sonar.projectName=Weather Guru" `
+            -D"sonar.sources=." `
+            -D"sonar.python.version=3.9" `
+            -D"sonar.host.url=$env:SONAR_HOST_URL" `
+            -D"sonar.login=$env:SONAR_TOKEN"
