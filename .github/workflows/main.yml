@@ -1,4 +1,4 @@
-name: Python Flask CI with SonarQube
+name: Python Flask CI + SonarQube
 
 on:
   push:
@@ -11,39 +11,59 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      # -------------------------
+      # Checkout Repository
+      # -------------------------
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # -------------------------
+      # Setup Python
+      # -------------------------
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
 
+      # -------------------------
+      # Install Dependencies
+      # -------------------------
       - name: Install dependencies
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
-          pip install Flask
-          if (Test-Path requirements.txt) { pip install -r requirements.txt }
+          if (Test-Path requirements.txt) {
+            pip install -r requirements.txt
+          } else {
+            pip install Flask
+          }
 
-      - name: Run syntax check
+      # -------------------------
+      # Syntax Check
+      # -------------------------
+      - name: Run Python Syntax Check
+        shell: pwsh
         run: |
           python -m py_compile app.py
 
-      # ---------------------------------------------------
-      # SONARQUBE SCANNER SETUP & ANALYSIS
-      # ---------------------------------------------------
-      - name: Setup SonarQube Scanner
-        uses: warchant/setup-sonar-scanner@v3
+      # -------------------------
+      # SONARQUBE SCAN
+      # -------------------------
+      - name: Install SonarScanner
+        shell: pwsh
+        run: |
+          choco install sonarscanner -y
 
-      - name: Run SonarQube Analysis
+      - name: Run SonarQube Scan
+        shell: pwsh
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         run: |
           sonar-scanner `
-            -Dsonar.projectKey=weather-guru `
-            -Dsonar.projectName="Weather Guru" `
-            -Dsonar.sources=. `
-            -Dsonar.python.version=3.9 `
-            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} `
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+            -D"sonar.projectKey=weather-guru" `
+            -D"sonar.projectName=Weather Guru" `
+            -D"sonar.sources=." `
+            -D"sonar.python.version=3.9" `
+            -D"sonar.host.url=$env:SONAR_HOST_URL" `
+            -D"sonar.login=$env:SONAR_TOKEN"
