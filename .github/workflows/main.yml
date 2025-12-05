@@ -51,7 +51,7 @@ jobs:
         with:
           args: >
             -Dsonar.organization=swale-coder
-            -Dsonar.projectKey=swale-coder_CityWeather
+            -Dsonar.projectKey=swale-coder
             -Dsonar.projectName=CityWeather
             -Dsonar.sources=.
             -Dsonar.python.version=3.9
