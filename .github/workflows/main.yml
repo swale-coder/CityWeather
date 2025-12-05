@@ -60,10 +60,11 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         run: |
-          sonar-scanner `
-            -D"sonar.projectKey=weather-guru" `
-            -D"sonar.projectName=Weather Guru" `
-            -D"sonar.sources=." `
-            -D"sonar.python.version=3.9" `
-            -D"sonar.host.url=$env:SONAR_HOST_URL" `
-            -D"sonar.login=$env:SONAR_TOKEN"
+            sonar-scanner ^
+            -Dsonar.projectKey=weather-guru ^
+            -Dsonar.projectName="Weather Guru" ^
+            -Dsonar.sources=. ^
+            -Dsonar.python.version=3.9 ^
+            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} ^
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+             shell: pwsh
