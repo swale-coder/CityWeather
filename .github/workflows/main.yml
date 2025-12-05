@@ -47,7 +47,7 @@ jobs:
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v5
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.NEW_SONAR_TOKEN }}
         with:
           args: >
             -Dsonar.organization=swale-coder
@@ -63,5 +63,5 @@ jobs:
         uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
         timeout-minutes: 5
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.NEW_SONAR_TOKEN }}
         continue-on-error: true
