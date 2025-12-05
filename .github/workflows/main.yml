@@ -7,17 +7,18 @@ on:
     branches: ["main"]
 
 jobs:
-  build:
+  sonarcloud:
+    name: SonarCloud Analysis
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Disable shallow clone for better analysis
+          fetch-depth: 0  # Shallow clones should be disabled for better analysis
       
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.9"
       
@@ -33,24 +34,34 @@ jobs:
       - name: Run syntax check
         run: python -m py_compile app.py
       
-      - name: Run tests (if available)
+      - name: Run tests with coverage
         run: |
-          if [ -f tests/test_app.py ]; then
-            pip install pytest pytest-cov
-            pytest --cov=. --cov-report=xml
+          pip install pytest pytest-cov
+          if [ -f tests/test_app.py ] || [ -f test_app.py ]; then
+            pytest --cov=. --cov-report=xml --cov-report=term
+          else
+            echo "No tests found, skipping coverage"
           fi
         continue-on-error: true
       
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarqube-scan-action@v5
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
             -Dsonar.organization=swale-coder
             -Dsonar.projectKey=swale-coder_CityWeather
-            -Dsonar.python.version=3.9
+            -Dsonar.projectName=CityWeather
             -Dsonar.sources=.
-            -Dsonar.exclusions=**/*.zip,**/*.pyc,**/venv/**,**/__pycache__/**,**/.git/**
+            -Dsonar.python.version=3.9
+            -Dsonar.exclusions=**/*.zip,**/*.pyc,**/venv/**,**/__pycache__/**,**/.git/**,**/node_modules/**
             -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.verbose=false
+      
+      - name: Check SonarCloud Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        continue-on-error: true
