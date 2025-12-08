@@ -8,45 +8,50 @@ on:
 
 jobs:
   sonarcloud:
-    name: SonarCloud Analysis
+    name: SonarCloud CI Pipeline
     runs-on: windows-latest
-    
+
     steps:
+      # ====== CHECKOUT ======
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Needed for proper SonarCloud analysis
+          fetch-depth: 0
 
+      # ====== PYTHON SETUP ======
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.9"
+          cache: "pip"
 
+      # ====== INSTALL DEPENDENCIES ======
       - name: Install dependencies
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
           if (Test-Path "requirements.txt") {
-              pip install -r requirements.txt
-          } else {
-              pip install Flask
+            pip install -r requirements.txt
           }
+          pip install pytest pytest-cov
 
+      # ====== STATIC SYNTAX CHECK ======
       - name: Run syntax check
         shell: pwsh
         run: python -m py_compile app.py
 
+      # ====== TESTS + COVERAGE ======
       - name: Run tests with coverage
         shell: pwsh
         run: |
-          pip install pytest pytest-cov
-          if ((Test-Path "tests/test_app.py") -or (Test-Path "test_app.py")) {
-              pytest --cov=. --cov-report=xml --cov-report=term
+          if (Test-Path "tests") {
+            pytest --cov=. --cov-report=xml --cov-report=term
           } else {
-              Write-Host "No tests found, skipping coverage"
+            Write-Host "⚠ No tests folder found — skipping"
           }
-        continue-on-error: true
+        continue-on-error: true  # Optional
 
+      # ====== SONARCLOUD SCAN ======
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v6
         env:
@@ -58,13 +63,15 @@ jobs:
             -Dsonar.projectName=CityWeather
             -Dsonar.sources=.
             -Dsonar.python.version=3.9
-            -Dsonar.exclusions=**/*.zip,**/*.pyc,**/venv/**,**/__pycache__/**,**/.git/**,**/node_modules/**
             -Dsonar.python.coverage.reportPaths=coverage.xml
-            -Dsonar.verbose=false
+            -Dsonar.exclusions=**/venv/**,**/__pycache__/**,**/.git/**,**/*.pyc,**/*.zip,**/node_modules/**
 
+      # ====== QUALITY GATE CHECK (Non-blocking) ======
       - name: Check SonarCloud Quality Gate
         uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
         env:
           SONAR_TOKEN: ${{ secrets.NEW_SONAR_TOKEN }}
+        with:
+          scanMetadataReportFile: .scannerwork/report-task.txt
+        continue-on-error: true   # prevents pipeline from failing
         timeout-minutes: 5
-        continue-on-error: true
