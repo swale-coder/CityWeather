@@ -72,7 +72,6 @@ jobs:
             -Dsonar.projectName=CityWeather
             -Dsonar.sources=.
             -Dsonar.python.version=3.9
-            -Dsonar.python.coverage.reportPaths=coverage.xml
             -Dsonar.exclusions=**/venv/**,**/__pycache__/**,**/.git/**,**/*.pyc,**/*.zip,**/node_modules/**
             -Dsonar.coverage.exclusions=tests/**
             -Dsonar.qualitygate.wait=true
