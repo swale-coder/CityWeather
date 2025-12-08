@@ -1,70 +1,41 @@
-name: Python Flask CI + SonarCloud
+name: SonarCloud Scan
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
   pull_request:
-    branches: ["main"]
+    types: [opened, synchronize, reopened]
+    branches: [ "main" ]
 
 jobs:
-  sonarcloud:
-    name: SonarCloud CI Pipeline
+  build:
     runs-on: windows-latest
 
     steps:
-      # ====== CHECKOUT ======
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # ====== PYTHON SETUP ======
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: "3.9"
-          cache: "pip"
 
-      # ====== INSTALL DEPENDENCIES ======
       - name: Install dependencies
-        shell: pwsh
         run: |
-          python -m pip install --upgrade pip
-          if (Test-Path "requirements.txt") {
-            pip install -r requirements.txt
-          }
-          pip install pytest pytest-cov
+          pip install -r requirements.txt
 
-      # ====== STATIC SYNTAX CHECK ======
-      - name: Run syntax check
-        shell: pwsh
-        run: python -m py_compile app.py
-
-      # ====== TESTS + COVERAGE ======
-      - name: Run tests with coverage
-        shell: pwsh
+      - name: Run tests and generate coverage report
         run: |
-          if (Test-Path "tests") {
-            pytest --cov=. --cov-report=xml:coverage.xml --cov-report=term
-          } else {
-            Write-Host "⚠ No tests folder found — skipping"
-          }
+          pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml
 
-      # ====== VERIFY COVERAGE FILE ======
       - name: Verify coverage.xml exists
-        shell: pwsh
         run: |
-          if (-Not (Test-Path "coverage.xml")) {
-            Write-Error "coverage.xml not found!"
-          } else {
-            Write-Host "coverage.xml found ✅"
+          if (!(Test-Path "coverage.xml")) { 
+            Write-Error "coverage.xml not found!" 
           }
 
-      # ====== SONARCLOUD SCAN ======
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v6
-        env:
-          SONAR_TOKEN: ${{ secrets.NEW_SONAR_TOKEN }}
         with:
           args: >
             -Dsonar.organization=swale-coder
@@ -72,16 +43,15 @@ jobs:
             -Dsonar.projectName=CityWeather
             -Dsonar.sources=.
             -Dsonar.python.version=3.9
-            -Dsonar.exclusions=**/venv/**,**/__pycache__/**,**/.git/**,**/*.pyc,**/*.zip,**/node_modules/**
-            -Dsonar.coverage.exclusions=tests/**
+            -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.exclusions=**/venv/**,**/__pycache__/**
             -Dsonar.qualitygate.wait=true
-
-      # ====== QUALITY GATE CHECK ======
-      - name: Check SonarCloud Quality Gate
-        uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
         env:
-          SONAR_TOKEN: ${{ secrets.NEW_SONAR_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: SonarCloud Quality Gate
+        uses: SonarSource/sonarqube-quality-gate-action@v1.1.0
         with:
           scanMetadataReportFile: .scannerwork/report-task.txt
-        continue-on-error: false
-        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
