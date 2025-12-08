@@ -72,6 +72,6 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.NEW_SONAR_TOKEN }}
         with:
-          scanMetadataReportFile: .scannerwork/report-task.txt
-        continue-on-error: true   # prevents pipeline from failing
+            scanMetadataReportFile: .scannerwork/report-task.txt
+        continue-on-error: true     # ✔️ correct place
         timeout-minutes: 5
