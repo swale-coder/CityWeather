@@ -16,7 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Required for proper SonarCloud analysis
+          fetch-depth: 0  # Needed for proper SonarCloud analysis
 
       # ====== PYTHON SETUP ======
       - name: Set up Python
@@ -37,21 +37,21 @@ jobs:
           }
           pip install pytest pytest-cov
 
-      # ====== SYNTAX CHECK ======
+      # ====== STATIC SYNTAX CHECK ======
       - name: Run syntax check
         shell: pwsh
         run: python -m py_compile app.py
 
-      # ====== RUN TESTS + COVERAGE ======
+      # ====== TESTS + COVERAGE ======
       - name: Run tests with coverage
         shell: pwsh
         run: |
           if (Test-Path "tests") {
-            pytest --cov=. --cov-report=xml --cov-report=term || Write-Host "⚠ Coverage check ignored for now"
+            pytest --cov=. --cov-report=xml --cov-report=term
           } else {
             Write-Host "⚠ No tests folder found — skipping"
           }
-        continue-on-error: true  # Workflow continues even if tests fail
+        continue-on-error: true
 
       # ====== SONARCLOUD SCAN ======
       - name: SonarCloud Scan
@@ -68,7 +68,7 @@ jobs:
             -Dsonar.python.coverage.reportPaths=coverage.xml
             -Dsonar.exclusions=**/venv/**,**/__pycache__/**,**/.git/**,**/*.pyc,**/*.zip,**/node_modules/**
             -Dsonar.qualitygate.wait=true
-            -Dsonar.coverage.exclusions=tests/**  # Optional: ignore test files from coverage
+            -Dsonar.coverage.exclusions=tests/**
 
       # ====== QUALITY GATE CHECK (Non-blocking) ======
       - name: Check SonarCloud Quality Gate
@@ -77,5 +77,5 @@ jobs:
           SONAR_TOKEN: ${{ secrets.NEW_SONAR_TOKEN }}
         with:
           scanMetadataReportFile: .scannerwork/report-task.txt
-        continue-on-error: true     # Workflow continues even if Quality Gate fails
+        continue-on-error: true
         timeout-minutes: 5
