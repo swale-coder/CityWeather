@@ -45,16 +45,26 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path "tests") {
-            pytest --cov=. --cov-report=xml --cov-report=term
+            pytest --cov=. --cov-report=xml:coverage.xml --cov-report=term
           } else {
             Write-Host "⚠ No tests folder found — skipping"
           }
-        continue-on-error: true  # optional
+
+      # ====== VERIFY COVERAGE FILE ======
+      - name: Verify coverage.xml exists
+        shell: pwsh
+        run: |
+          if (-Not (Test-Path "coverage.xml")) {
+            Write-Error "coverage.xml not found!"
+          } else {
+            Write-Host "coverage.xml found ✅"
+          }
 
       # ====== SONARCLOUD SCAN ======
       - name: SonarCloud Scan
-        id: sonar
         uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.NEW_SONAR_TOKEN }}
         with:
           args: >
             -Dsonar.organization=swale-coder
@@ -66,20 +76,13 @@ jobs:
             -Dsonar.exclusions=**/venv/**,**/__pycache__/**,**/.git/**,**/*.pyc,**/*.zip,**/node_modules/**
             -Dsonar.coverage.exclusions=tests/**
             -Dsonar.qualitygate.wait=true
-          projectBaseDir: .
-          scannerVersion: 7.2.0.5079
-        env:
-          SONAR_TOKEN: ${{ secrets.NEW_SONAR_TOKEN }}
 
       # ====== QUALITY GATE CHECK ======
-      - name: Check SonarCloud Quality Gate (Windows PowerShell)
-        shell: pwsh
-        run: |
-          $status = "${{ steps.sonar.outputs.quality_gate_status }}"
-          Write-Host "SonarCloud Quality Gate Status: $status"
-          if ($status -ne "OK") {
-              Write-Error "❌ Quality Gate FAILED! See details at https://sonarcloud.io/dashboard?id=swale-coder_CityWeather&branch=main"
-              exit 1
-          } else {
-              Write-Host "✅ Quality Gate PASSED"
-          }
+      - name: Check SonarCloud Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
+        env:
+          SONAR_TOKEN: ${{ secrets.NEW_SONAR_TOKEN }}
+        with:
+          scanMetadataReportFile: .scannerwork/report-task.txt
+        continue-on-error: false
+        timeout-minutes: 5
