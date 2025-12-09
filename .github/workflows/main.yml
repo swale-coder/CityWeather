@@ -1,4 +1,4 @@
-name: Python Tests
+name: Python CI with SonarQube
 
 on:
   push:
@@ -7,17 +7,19 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  build:
     runs-on: windows-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.9"
+        python-version: '3.9'
 
     - name: Install dependencies
       run: |
@@ -25,7 +27,18 @@ jobs:
         pip install pytest pytest-cov
       shell: pwsh
 
-    - name: Run tests with coverage
+    - name: Run Tests
       run: |
         pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml
       shell: pwsh
+
+    - name: SonarQube Scan
+      uses: sonarsource/sonarqube-scan-action@v2
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+    - name: SonarQube Quality Gate
+      uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
