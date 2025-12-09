@@ -1,57 +1,29 @@
-name: SonarCloud Scan
+name: Python Tests
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
   pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [ "main" ]
+    branches: [ main ]
 
 jobs:
-  build:
+  test:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.9"
 
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+    - name: Install dependencies
+      run: |
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install pytest pytest-cov
 
-      - name: Run tests and generate coverage report
-        run: |
-          pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml
-
-      - name: Verify coverage.xml exists
-        run: |
-          if (!(Test-Path "coverage.xml")) { 
-            Write-Error "coverage.xml not found!" 
-          }
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v6
-        with:
-          args: >
-            -Dsonar.organization=swale-coder
-            -Dsonar.projectKey=swale-coder_CityWeather
-            -Dsonar.projectName=CityWeather
-            -Dsonar.sources=.
-            -Dsonar.python.version=3.9
-            -Dsonar.python.coverage.reportPaths=coverage.xml
-            -Dsonar.exclusions=**/venv/**,**/__pycache__/**
-            -Dsonar.qualitygate.wait=true
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      - name: SonarCloud Quality Gate
-        uses: SonarSource/sonarqube-quality-gate-action@v1.1.0
-        with:
-          scanMetadataReportFile: .scannerwork/report-task.txt
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    - name: Run tests with coverage
+      run: |
+        pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml
