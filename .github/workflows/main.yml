@@ -21,9 +21,11 @@ jobs:
 
     - name: Install dependencies
       run: |
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if (Test-Path "requirements.txt") { pip install -r requirements.txt }
         pip install pytest pytest-cov
+      shell: pwsh
 
     - name: Run tests with coverage
       run: |
         pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml
+      shell: pwsh
