@@ -1,57 +1,43 @@
-name: SonarCloud Scan
+name: Python CI with SonarQube
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
   pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [ "main" ]
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
 
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+    - name: Install dependencies
+      run: |
+        if (Test-Path "requirements.txt") { pip install -r requirements.txt }
+        pip install pytest pytest-cov
+      shell: pwsh
 
       # - name: Run tests and generate coverage report
       #   run: |
       #     pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml
 
-      - name: Verify coverage.xml exists
-        run: |
-          if (!(Test-Path "coverage.xml")) { 
-            Write-Error "coverage.xml not found!" 
-          }
+    - name: SonarQube Scan
+      uses: sonarsource/sonarqube-scan-action@v2
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v6
-        with:
-          args: >
-            -Dsonar.organization=swale-coder
-            -Dsonar.projectKey=swale-coder_CityWeather
-            -Dsonar.projectName=CityWeather
-            -Dsonar.sources=.
-            -Dsonar.python.version=3.9
-            -Dsonar.python.coverage.reportPaths=coverage.xml
-            -Dsonar.exclusions=**/venv/**,**/__pycache__/**
-            -Dsonar.qualitygate.wait=true
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      - name: SonarCloud Quality Gate
-        uses: SonarSource/sonarqube-quality-gate-action@v1.1.0
-        with:
-          scanMetadataReportFile: .scannerwork/report-task.txt
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    - name: SonarQube Quality Gate
+      uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
