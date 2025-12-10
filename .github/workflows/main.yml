@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest   # ✅ FIX: Use Linux instead of Windows
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
@@ -26,6 +26,10 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install pytest pytest-cov
 
+    # - name: Run tests and generate coverage
+    #   run: |
+    #     pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml
+
     - name: SonarQube Scan
       uses: sonarsource/sonarqube-scan-action@v2
       env:
@@ -36,3 +40,4 @@ jobs:
       uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }} 
