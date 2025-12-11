@@ -1,10 +1,15 @@
 from flask import Flask, render_template_string, request, jsonify
 import requests
 from datetime import datetime
+import os
 
 app = Flask(__name__)
 
-API_KEY = "fbe36394e522d7ee060e8774229a074c"
+# Load API key from environment variable
+API_KEY = os.getenv("API_KEY")
+if not API_KEY:
+    raise RuntimeError("❌ ERROR: Missing API_KEY environment variable. Set it before running.")
+
 BASE_URL = "http://api.openweathermap.org/data/2.5/weather"
 FORECAST_URL = "http://api.openweathermap.org/data/2.5/forecast"
 AQI_URL = "http://api.openweathermap.org/data/2.5/air_pollution"

@@ -1,4 +1,4 @@
-name: Python CI with SonarQube
+name: Python CI with SonarCloud
 
 on:
   push:
@@ -26,18 +26,18 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install pytest pytest-cov
 
-    # - name: Run tests and generate coverage
+    # Export GitHub secret so your app can use it
+    - name: Set API Key
+      run: echo "API_KEY=${{ secrets.API_KEY }}" >> $GITHUB_ENV
+
+    # Optional - Run tests
+    # - name: Run tests
     #   run: |
     #     pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml
 
-    - name: SonarQube Scan
-      uses: sonarsource/sonarqube-scan-action@v2
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
-    - name: SonarQube Scan
+    - name: SonarCloud Scan
       uses: sonarsource/sonarqube-scan-action@v2
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: https://sonarcloud.io
+
