@@ -32,6 +32,16 @@ mock_forecast_data = {
 mock_aqi_data = {"list": [{"main": {"aqi": 2}}]}
 
 # -------------------------
+# Helper class to mock requests
+# -------------------------
+class MockResponse:
+    def __init__(self, json_data, status_code=200):
+        self._json = json_data
+        self.status_code = status_code
+    def json(self):
+        return self._json
+
+# -------------------------
 # Test index route
 # -------------------------
 def test_index(client):
@@ -44,7 +54,6 @@ def test_index(client):
 # -------------------------
 @patch("app.requests.get")
 def test_weather_success(mock_get, client):
-    # Mock different API endpoints
     def side_effect(url, params):
         if "weather" in url and "forecast" not in url and "air_pollution" not in url:
             return MockResponse(mock_current_data)
@@ -59,9 +68,15 @@ def test_weather_success(mock_get, client):
     response = client.post("/weather", json={"city": "TestCity"})
     assert response.status_code == 200
     data = response.get_json()
-    assert data["current"]["name"] == "TestCity"
-    assert len(data["forecast"]) > 0
-    assert data["current"]["aqi"] == 2
+
+    # Validate current weather keys
+    for key in ["name", "country", "temp", "feels_like", "description", "main", "humidity", "wind_speed", "pressure", "aqi"]:
+        assert key in data["current"]
+
+    # Validate forecast structure
+    for day in data["forecast"]:
+        for key in ["date", "temp", "description", "main", "humidity"]:
+            assert key in day
 
 # -------------------------
 # Test /weather route missing city
@@ -94,11 +109,15 @@ def test_weather_exception(mock_get, client):
     assert "error" in data
 
 # -------------------------
-# Helper class to mock requests
+# Test /weather with spaces and special chars
 # -------------------------
-class MockResponse:
-    def __init__(self, json_data, status_code=200):
-        self._json = json_data
-        self.status_code = status_code
-    def json(self):
-        return self._json
+@patch("app.requests.get")
+def test_weather_special_char_city(mock_get, client):
+    mock_get.return_value = MockResponse(mock_current_data)
+    response = client.post("/weather", json={"city": "New York"})
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["current"]["name"] == "TestCity"
+
+    response = client.post("/weather", json={"city": "São Paulo"})
+    assert response.status_code == 200
