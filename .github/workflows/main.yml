@@ -63,7 +63,7 @@ jobs:
         args: >
           -Dsonar.python.coverage.reportPaths=coverage.xml
           -Dsonar.sources=.
-          -Dsonar.exclusions=tests/**  # exclude test files from indexing
+          -Dsonar.exclusions=tests/**
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: https://sonarcloud.io
