@@ -113,11 +113,30 @@ def test_weather_exception(mock_get, client):
 # -------------------------
 @patch("app.requests.get")
 def test_weather_special_char_city(mock_get, client):
-    mock_get.return_value = MockResponse(mock_current_data)
+    # Use side_effect to mock all endpoints
+    def side_effect(url, params):
+        if "weather" in url and "forecast" not in url and "air_pollution" not in url:
+            return MockResponse(mock_current_data)
+        elif "forecast" in url:
+            return MockResponse(mock_forecast_data)
+        elif "air_pollution" in url:
+            return MockResponse(mock_aqi_data)
+        return MockResponse({"cod": 404, "message": "Not Found"}, 404)
+
+    mock_get.side_effect = side_effect
+
+    # Test city with space
     response = client.post("/weather", json={"city": "New York"})
     assert response.status_code == 200
     data = response.get_json()
     assert data["current"]["name"] == "TestCity"
+    assert len(data["forecast"]) > 0
+    assert data["current"]["aqi"] == 2
 
+    # Test city with special character
     response = client.post("/weather", json={"city": "São Paulo"})
     assert response.status_code == 200
+    data = response.get_json()
+    assert data["current"]["name"] == "TestCity"
+    assert len(data["forecast"]) > 0
+    assert data["current"]["aqi"] == 2
