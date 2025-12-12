@@ -11,77 +11,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # -------------------------
-    # Checkout code
-    # -------------------------
+
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    # -------------------------
-    # Setup Python
-    # -------------------------
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.9"
 
-    # -------------------------
-    # Install dependencies
-    # -------------------------
     - name: Install dependencies
       run: |
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install -r requirements.txt
         pip install pytest pytest-cov coverage
 
-    # -------------------------
-    # Export API key
-    # -------------------------
-    - name: Export API KEY
-      run: echo "API_KEY=${{ secrets.API_KEY }}" >> $GITHUB_ENV
-
-    # -------------------------
-    # Add PYTHONPATH
-    # -------------------------
-    - name: Add PYTHONPATH
-      run: echo "PYTHONPATH=$(pwd)" >> $GITHUB_ENV
-
-    # -------------------------
-    # Run Tests + Generate Coverage
-    # IMPORTANT: using coverage run to create .coverage file
-    # -------------------------
-    - name: Run Tests and Generate Coverage
+    - name: Run Tests with Coverage
       run: |
-        coverage run -m pytest --maxfail=1 --disable-warnings
-        coverage xml
+        pytest --cov=. --cov-report=xml --disable-warnings --maxfail=1
 
-    # -------------------------
-    # Enforce minimum coverage (80%)
-    # Python-based coverage check (no bc)
-    # -------------------------
-    - name: Enforce Coverage Threshold
-      run: |
-        COV=$(coverage report | tail -n 1 | awk '{print $4}' | sed 's/%//')
-        echo "Current Coverage: $COV%"
-        python3 - <<EOF
-import sys
-if float("$COV") < 80:
-    print("ERROR: Coverage below 80%!"); sys.exit(1)
-EOF
-
-    # -------------------------
-    # SonarCloud Scan
-    # -------------------------
-    - name: SonarCloud Scan
+    - name: Upload Coverage to SonarCloud
       uses: sonarsource/sonarqube-scan-action@v2
       with:
         args: >
           -Dsonar.python.coverage.reportPaths=coverage.xml
           -Dsonar.sources=.
-          -Dsonar.exclusions=tests/**
           -Dsonar.tests=tests
-          -Dsonar.test.inclusions=tests/**
+          -Dsonar.exclusions=tests/**
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: https://sonarcloud.io
+
+    - name: Enforce Minimum Coverage 80%
+      run: |
+        total=$(coverage report | tail -n 1 | awk '{print $4}' | sed 's/%//')
+        echo "Coverage: $total%"
+        if (( $(echo "$total < 80" | bc -l) )); then
+          echo "Coverage below 80% — failing."
+          exit 1
+        fi
