@@ -49,22 +49,26 @@ jobs:
 
     # -------------------------
     # Run Tests + Generate Coverage
+    # IMPORTANT: using coverage run to create .coverage file
     # -------------------------
     - name: Run Tests and Generate Coverage
       run: |
-        pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml
+        coverage run -m pytest --maxfail=1 --disable-warnings
+        coverage xml
 
     # -------------------------
-    # Enforce minimum coverage
+    # Enforce minimum coverage (80%)
+    # Python-based coverage check (no bc)
     # -------------------------
     - name: Enforce Coverage Threshold
       run: |
-        COVERAGE=$(coverage report | tail -n 1 | awk '{print $4}' | sed 's/%//')
-        echo "Current Coverage: $COVERAGE%"
-        if (( $(echo "$COVERAGE < 80" | bc -l) )); then
-          echo "ERROR: Coverage is below 80%!"
-          exit 1
-        fi
+        COV=$(coverage report | tail -n 1 | awk '{print $4}' | sed 's/%//')
+        echo "Current Coverage: $COV%"
+        python3 - <<EOF
+import sys
+if float("$COV") < 80:
+    print("ERROR: Coverage below 80%!"); sys.exit(1)
+EOF
 
     # -------------------------
     # SonarCloud Scan
@@ -76,6 +80,8 @@ jobs:
           -Dsonar.python.coverage.reportPaths=coverage.xml
           -Dsonar.sources=.
           -Dsonar.exclusions=tests/**
+          -Dsonar.tests=tests
+          -Dsonar.test.inclusions=tests/**
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: https://sonarcloud.io
