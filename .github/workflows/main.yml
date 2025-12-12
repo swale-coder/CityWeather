@@ -27,6 +27,10 @@ jobs:
         pip install -r requirements.txt
         pip install pytest pytest-cov coverage
 
+    # FIX: Add project root to PYTHONPATH
+    - name: Add PYTHONPATH
+      run: echo "PYTHONPATH=$(pwd)" >> $GITHUB_ENV
+
     - name: Run Tests with Coverage
       run: |
         pytest --cov=. --cov-report=xml --disable-warnings --maxfail=1
