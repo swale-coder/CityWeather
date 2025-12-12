@@ -11,26 +11,44 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # -------------------------
+    # Checkout code
+    # -------------------------
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
+    # -------------------------
+    # Setup Python
+    # -------------------------
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.9'
 
+    # -------------------------
+    # Install dependencies
+    # -------------------------
     - name: Install dependencies
       run: |
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install pytest pytest-cov
 
+    # -------------------------
+    # Add API key (optional)
+    # -------------------------
     - name: Set API Key
       run: echo "API_KEY=${{ secrets.API_KEY }}" >> $GITHUB_ENV
 
     # -------------------------
-    # Run tests + generate coverage
+    # FIX → Add PYTHONPATH so tests can import app.py
+    # -------------------------
+    - name: Add PYTHONPATH
+      run: echo "PYTHONPATH=$(pwd)" >> $GITHUB_ENV
+
+    # -------------------------
+    # Run tests + coverage
     # -------------------------
     - name: Run Tests and Generate Coverage
       run: |
