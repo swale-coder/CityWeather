@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
@@ -26,18 +26,21 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install pytest pytest-cov
 
-    # Export GitHub secret so your app can use it
     - name: Set API Key
       run: echo "API_KEY=${{ secrets.API_KEY }}" >> $GITHUB_ENV
 
-    # Optional - Run tests
-    # - name: Run tests
-    #   run: |
-    #     pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml
+    # -------------------------
+    # Run tests + generate coverage
+    # -------------------------
+    - name: Run Tests and Generate Coverage
+      run: |
+        pytest --maxfail=1 --disable-warnings --cov=. --cov-report=xml
 
+    # -------------------------
+    # SonarCloud Scan
+    # -------------------------
     - name: SonarCloud Scan
       uses: sonarsource/sonarqube-scan-action@v2
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: https://sonarcloud.io
-
