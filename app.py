@@ -2,6 +2,7 @@ from flask import Flask, render_template_string, request, jsonify
 import requests
 from datetime import datetime
 import os
+import sys
 
 app = Flask(__name__)
 
@@ -10,10 +11,14 @@ app = Flask(__name__)
 # ====================================================
 API_KEY = os.getenv("API_KEY")
 
-# Pytest automatically sets this env variable
-IS_PYTEST = "PYTEST_CURRENT_TEST" in os.environ
+# Check if we're running in a test environment
+IS_TESTING = (
+    "PYTEST_CURRENT_TEST" in os.environ or
+    "pytest" in sys.modules or
+    "PYTEST_RUNNING" in os.environ
+)
 
-if not API_KEY and not IS_PYTEST:
+if not API_KEY and not IS_TESTING:
     raise RuntimeError("❌ Missing API_KEY environment variable")
 
 # ====================================================
