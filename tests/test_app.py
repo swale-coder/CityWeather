@@ -1,57 +1,144 @@
-from flask import Flask, request, jsonify
-import requests
+import pytest
+from app import app
+from unittest.mock import patch
 
-app = Flask(__name__)
+# =============================
+# Pytest fixture for Flask test client
+# =============================
+@pytest.fixture
+def client():
+    with app.test_client() as client:
+        yield client
 
-@app.route("/weather", methods=["POST"])
-def weather():
-    try:
-        data = request.get_json()
-        if not data or "city" not in data:
-            return jsonify({"error": "City is required"}), 400
+# =============================
+# Mock response helper
+# =============================
+class MockResponse:
+    def __init__(self, json_data, status_code=200):
+        self._json_data = json_data
+        self.status_code = status_code
 
-        city = data["city"].strip()
-        if not city:
-            return jsonify({"error": "City cannot be empty"}), 400
+    def json(self):
+        return self._json_data
 
-        # Mocked API calls or actual API calls
-        current_resp = requests.get(f"https://api.example.com/weather?q={city}")
-        forecast_resp = requests.get(f"https://api.example.com/forecast?q={city}")
-        aqi_resp = requests.get(f"https://api.example.com/air_pollution?q={city}")
+# =============================
+# Sample mocked data
+# =============================
+mock_current_data = {
+    "name": "TestCity",
+    "sys": {"country": "TC"},
+    "main": {"temp": 25, "feels_like": 26, "humidity": 50, "pressure": 1010},
+    "weather": [{"description": "clear sky", "main": "Clear"}],
+    "wind": {"speed": 5},
+    "coord": {"lat": 10.0, "lon": 20.0},
+    "cod": 200
+}
 
-        if current_resp is None or forecast_resp is None or aqi_resp is None:
-            return jsonify({"error": "API returned no data"}), 500
+mock_forecast_data = {
+    "list": [
+        {"dt": 1700000000, "main": {"temp": 25, "humidity": 50}, "weather": [{"description": "clear", "main": "Clear"}]},
+        {"dt": 1700086400, "main": {"temp": 27, "humidity": 55}, "weather": [{"description": "cloudy", "main": "Clouds"}]},
+        {"dt": 1700172800, "main": {"temp": 28, "humidity": 60}, "weather": [{"description": "rain", "main": "Rain"}]},
+        {"dt": 1700259200, "main": {"temp": 24, "humidity": 48}, "weather": [{"description": "sunny", "main": "Clear"}]},
+        {"dt": 1700345600, "main": {"temp": 23, "humidity": 52}, "weather": [{"description": "storm", "main": "Storm"}]},
+        {"dt": 1700432000, "main": {"temp": 22, "humidity": 50}, "weather": [{"description": "fog", "main": "Fog"}]},
+    ]
+}
 
-        current_data = current_resp.json()
-        forecast_data = forecast_resp.json()
-        aqi_data = aqi_resp.json()
+mock_aqi_data = {"list": [{"main": {"aqi": 2}}]}
 
-        # Minimal error handling for missing keys
-        current = {
-            "name": current_data.get("name", ""),
-            "country": current_data.get("sys", {}).get("country", ""),
-            "temp": current_data.get("main", {}).get("temp", 0),
-            "feels_like": current_data.get("main", {}).get("feels_like", 0),
-            "humidity": current_data.get("main", {}).get("humidity", 0),
-            "pressure": current_data.get("main", {}).get("pressure", 0),
-            "description": current_data.get("weather", [{}])[0].get("description", ""),
-            "main": current_data.get("weather", [{}])[0].get("main", ""),
-            "wind_speed": current_data.get("wind", {}).get("speed", 0),
-            "aqi": aqi_data.get("list", [{}])[0].get("main", {}).get("aqi", None),
-        }
+# =============================
+# TEST CASES
+# =============================
 
-        forecast_list = []
-        for day in forecast_data.get("list", []):
-            forecast_list.append({
-                "date": day.get("dt", 0),
-                "temp": day.get("main", {}).get("temp", 0),
-                "humidity": day.get("main", {}).get("humidity", 0),
-                "description": day.get("weather", [{}])[0].get("description", ""),
-                "main": day.get("weather", [{}])[0].get("main", ""),
-            })
+@patch("app.requests.get")
+def test_weather_success(mock_get, client):
+    """Test successful weather request"""
+    mock_get.side_effect = [
+        MockResponse(mock_current_data),
+        MockResponse(mock_forecast_data),
+        MockResponse(mock_aqi_data),
+    ]
+    response = client.post("/weather", json={"city": "TestCity"})
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["current"]["name"] == "TestCity"
+    assert len(data["forecast"]) == 5  # only 5 forecast days returned
 
-        return jsonify({"current": current, "forecast": forecast_list}), 200
+@patch("app.requests.get")
+def test_weather_city_not_found(mock_get, client):
+    """Test city not found"""
+    mock_get.return_value = MockResponse({"cod": 404, "message": "city not found"})
+    response = client.post("/weather", json={"city": "UnknownCity"})
+    assert response.status_code == 404
+    assert "city not found" in response.get_json()["error"].lower()
 
-    except Exception as e:
-        # Catch all exceptions to prevent 500 errors in tests
-        return jsonify({"error": str(e)}), 500
+def test_weather_missing_city(client):
+    """Test missing city field"""
+    response = client.post("/weather", json={})
+    assert response.status_code == 400
+    assert "required" in response.get_json()["error"].lower()
+
+def test_weather_empty_city(client):
+    """Test empty city string"""
+    response = client.post("/weather", json={"city": "   "})
+    assert response.status_code == 400
+    assert "cannot be empty" in response.get_json()["error"].lower()
+
+@patch("app.requests.get")
+def test_weather_api_exception(mock_get, client):
+    """Test API throws exception"""
+    mock_get.side_effect = Exception("API failed")
+    response = client.post("/weather", json={"city": "TestCity"})
+    assert response.status_code == 500
+    assert "unexpected server error" in response.get_json()["error"].lower()
+
+@patch("app.requests.get")
+def test_forecast_less_than_5_days(mock_get, client):
+    """Test forecast returns less than 5 days"""
+    short_forecast = {"list": mock_forecast_data["list"][:2]}
+    mock_get.side_effect = [
+        MockResponse(mock_current_data),
+        MockResponse(short_forecast),
+        MockResponse(mock_aqi_data),
+    ]
+    response = client.post("/weather", json={"city": "TestCity"})
+    data = response.get_json()
+    assert len(data["forecast"]) == 2
+
+@patch("app.requests.get")
+def test_aqi_missing(mock_get, client):
+    """Test missing AQI data"""
+    mock_get.side_effect = [
+        MockResponse(mock_current_data),
+        MockResponse(mock_forecast_data),
+        MockResponse({"list": []}),  # no AQI
+    ]
+    response = client.post("/weather", json={"city": "TestCity"})
+    data = response.get_json()
+    assert data["current"]["aqi"] == 0
+
+@patch("app.requests.get")
+def test_weather_special_char_city(mock_get, client):
+    """Test city with special characters / unicode"""
+    mock_get.side_effect = [
+        MockResponse(mock_current_data),
+        MockResponse(mock_forecast_data),
+        MockResponse(mock_aqi_data),
+    ]
+    response = client.post("/weather", json={"city": "São Paulo"})
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["current"]["name"] == "TestCity"
+
+@patch("app.requests.get")
+def test_weather_trimmed_city(mock_get, client):
+    """Test city with spaces"""
+    mock_get.side_effect = [
+        MockResponse(mock_current_data),
+        MockResponse(mock_forecast_data),
+        MockResponse(mock_aqi_data),
+    ]
+    response = client.post("/weather", json={"city": "   TestCity   "})
+    assert response.status_code == 200
+
