@@ -5,24 +5,27 @@ import os
 
 app = Flask(__name__)
 
-# ----------------------------------------------------
-# API KEY
-# ----------------------------------------------------
+# ====================================================
+# API KEY HANDLING (CI + PYTEST SAFE)
+# ====================================================
 API_KEY = os.getenv("API_KEY")
 
-if not API_KEY and not os.getenv("PYTEST_RUNNING"):
+# Pytest automatically sets this env variable
+IS_PYTEST = "PYTEST_CURRENT_TEST" in os.environ
+
+if not API_KEY and not IS_PYTEST:
     raise RuntimeError("❌ Missing API_KEY environment variable")
 
-# ----------------------------------------------------
-# API URLs
-# ----------------------------------------------------
+# ====================================================
+# API ENDPOINTS
+# ====================================================
 BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
 FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast"
 AQI_URL = "https://api.openweathermap.org/data/2.5/air_pollution"
 
-# ----------------------------------------------------
-# HTML TEMPLATE
-# ----------------------------------------------------
+# ====================================================
+# HTML TEMPLATE (CLEAN + OPTIMIZED)
+# ====================================================
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
@@ -40,162 +43,149 @@ body {
     color: white;
 }
 .container { max-width: 900px; margin: auto; padding: 20px; }
-h1 { text-align: center; margin-bottom: 20px; }
+h1 { text-align: center; }
 
 .search-box {
     background: white; color: black;
     padding: 20px; border-radius: 12px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-    margin-bottom: 25px;
+    margin-bottom: 20px;
 }
-#cityInput {
+input, button {
     width: 100%; padding: 12px;
-    border-radius: 8px; border: 1px solid #ccc;
-    margin-bottom: 10px;
+    margin-top: 8px;
+    border-radius: 8px;
+    border: none;
 }
-button {
-    width: 100%; padding: 12px;
-    border: none; border-radius: 8px;
-    background: #667eea; color: white;
-    font-size: 16px; cursor: pointer;
-}
+button { background: #667eea; color: white; cursor: pointer; }
 button:hover { opacity: 0.9; }
 
-.error, .loading {
-    padding: 15px; text-align: center;
-    border-radius: 8px; margin-bottom: 15px;
-}
-.error { background: #ff4e4e; }
-.loading { background: #ffffff33; }
-
-.weather-box, .forecast-box {
+.box {
     background: white; color: black;
     padding: 20px; border-radius: 12px;
     margin-top: 20px;
+    display: none;
 }
+
 .forecast-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px; margin-top: 10px;
+    gap: 10px;
 }
-.forecast-card {
+
+.card {
     background: #f1f1ff;
-    padding: 15px;
-    border-radius: 10px;
+    padding: 10px;
+    border-radius: 8px;
     text-align: center;
 }
+.error { background: #ff4e4e; padding: 10px; border-radius: 8px; display: none; }
+.loading { text-align: center; display: none; }
 </style>
 </head>
 
 <body>
 <div class="container">
-
 <h1>🌤 Weather Forecast</h1>
 
 <div class="search-box">
-    <input id="cityInput" type="text" placeholder="Enter city name...">
-    <button onclick="getWeather()">Search</button>
+    <input id="city" placeholder="Enter city name">
+    <button onclick="fetchWeather()">Search</button>
 </div>
 
-<div id="error" class="error" style="display:none"></div>
-<div id="loading" class="loading" style="display:none">Loading...</div>
+<div id="error" class="error"></div>
+<div id="loading" class="loading">Loading...</div>
 
-<div id="weatherBox" class="weather-box" style="display:none">
-    <h2 id="cityName"></h2>
-    <h1 id="temperature"></h1>
-    <p id="description"></p>
-    <p><b>Feels Like:</b> <span id="feels"></span></p>
-    <p><b>Humidity:</b> <span id="humidity"></span></p>
-    <p><b>Wind:</b> <span id="wind"></span></p>
-    <p><b>Pressure:</b> <span id="pressure"></span></p>
-    <p><b>AQI:</b> <span id="aqi"></span></p>
+<div id="current" class="box">
+    <h2 id="name"></h2>
+    <h1 id="temp"></h1>
+    <p id="desc"></p>
+    <p>Feels Like: <span id="feels"></span></p>
+    <p>Humidity: <span id="humidity"></span></p>
+    <p>Wind: <span id="wind"></span></p>
+    <p>Pressure: <span id="pressure"></span></p>
+    <p>AQI: <span id="aqi"></span></p>
 </div>
 
-<div id="forecastBox" class="forecast-box" style="display:none">
+<div id="forecast" class="box">
     <h3>5-Day Forecast</h3>
     <div id="forecastGrid" class="forecast-grid"></div>
 </div>
-
 </div>
 
 <script>
-async function getWeather() {
-    const city = document.getElementById("cityInput").value.trim();
+async function fetchWeather() {
+    const city = document.getElementById("city").value.trim();
     if (!city) return;
 
-    hide("weatherBox");
-    hide("forecastBox");
-    hide("error");
+    hideAll();
     show("loading");
 
     try {
         const res = await fetch("/weather", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ city })
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({city})
         });
 
         const data = await res.json();
         hide("loading");
 
         if (!res.ok) {
-            showError(data.error || "City not found");
+            showError(data.error);
             return;
         }
 
-        displayWeather(data);
-
-    } catch (e) {
+        showWeather(data);
+    } catch {
         hide("loading");
-        showError("Network error. Try again.");
+        showError("Network error");
     }
 }
 
-function displayWeather(data) {
+function showWeather(data) {
     const c = data.current;
-
-    document.getElementById("cityName").textContent = `${c.name}, ${c.country}`;
-    document.getElementById("temperature").textContent = Math.round(c.temp) + "°C";
-    document.getElementById("description").textContent = c.description;
+    document.getElementById("name").textContent = `${c.name}, ${c.country}`;
+    document.getElementById("temp").textContent = Math.round(c.temp) + "°C";
+    document.getElementById("desc").textContent = c.description;
     document.getElementById("feels").textContent = c.feels_like + "°C";
     document.getElementById("humidity").textContent = c.humidity + "%";
     document.getElementById("wind").textContent = c.wind_speed + " m/s";
     document.getElementById("pressure").textContent = c.pressure + " hPa";
     document.getElementById("aqi").textContent = c.aqi;
 
-    show("weatherBox");
+    show("current");
 
     const grid = document.getElementById("forecastGrid");
     grid.innerHTML = "";
     data.forecast.forEach(f => {
         grid.innerHTML += `
-            <div class="forecast-card">
-                <h4>${f.date}</h4>
-                <p><b>${Math.round(f.temp)}°C</b></p>
+            <div class="card">
+                <b>${f.date}</b>
+                <p>${Math.round(f.temp)}°C</p>
                 <p>${f.description}</p>
-                <p>Humidity: ${f.humidity}%</p>
+                <p>${f.humidity}%</p>
             </div>`;
     });
-
-    show("forecastBox");
+    show("forecast");
 }
 
-function show(id) { document.getElementById(id).style.display = "block"; }
-function hide(id) { document.getElementById(id).style.display = "none"; }
-function showError(msg) {
-    const e = document.getElementById("error");
-    e.textContent = msg;
-    e.style.display = "block";
+function hideAll() {
+    ["current","forecast","error"].forEach(hide);
+}
+function show(id){ document.getElementById(id).style.display="block"; }
+function hide(id){ document.getElementById(id).style.display="none"; }
+function showError(msg){
+    const e=document.getElementById("error");
+    e.textContent=msg; e.style.display="block";
 }
 </script>
-
 </body>
 </html>
 """
 
-# ----------------------------------------------------
-# BACKEND
-# ----------------------------------------------------
+# ====================================================
+# ROUTES
+# ====================================================
 @app.route("/")
 def index():
     return render_template_string(HTML_TEMPLATE)
@@ -203,61 +193,49 @@ def index():
 @app.route("/weather", methods=["POST"])
 def get_weather():
     try:
-        req = request.get_json()
-        if not req or "city" not in req:
+        data = request.get_json()
+        if not data or not data.get("city"):
             return jsonify({"error": "City name is required"}), 400
 
-        city = req["city"]
+        if not API_KEY:
+            return jsonify({"error": "API key not configured"}), 500
 
-        # ------- CURRENT WEATHER -------
+        city = data["city"].strip()
+
         current = requests.get(BASE_URL, params={
-            "q": city,
-            "appid": API_KEY,
-            "units": "metric"
+            "q": city, "appid": API_KEY, "units": "metric"
         }).json()
 
         if current.get("cod") != 200:
             return jsonify({"error": current.get("message", "City not found")}), 404
 
-        # ------- FORECAST -------
         forecast_raw = requests.get(FORECAST_URL, params={
-            "q": city,
-            "appid": API_KEY,
-            "units": "metric"
+            "q": city, "appid": API_KEY, "units": "metric"
         }).json()
 
-        daily = []
-        used = set()
-
+        forecast, used = [], set()
         for item in forecast_raw.get("list", []):
             dt = datetime.fromtimestamp(item["dt"])
-            date_key = dt.strftime("%Y-%m-%d")
-
-            if date_key not in used and dt.hour >= 12:
-                used.add(date_key)
-                daily.append({
+            key = dt.strftime("%Y-%m-%d")
+            if key not in used and dt.hour >= 12:
+                used.add(key)
+                forecast.append({
                     "date": dt.strftime("%a, %b %d"),
-                    "temp": item["main"]["temp"],
-                    "description": item["weather"][0]["description"].title(),
-                    "humidity": item["main"]["humidity"]
+                    "temp": item.get("main", {}).get("temp", 0),
+                    "description": item.get("weather", [{}])[0].get("description", "").title(),
+                    "humidity": item.get("main", {}).get("humidity", 0)
                 })
-
-                if len(daily) == 5:
+                if len(forecast) == 5:
                     break
 
-        # ------- AQI -------
-        lat = current["coord"]["lat"]
-        lon = current["coord"]["lon"]
-
         aqi_raw = requests.get(AQI_URL, params={
-            "lat": lat,
-            "lon": lon,
+            "lat": current["coord"]["lat"],
+            "lon": current["coord"]["lon"],
             "appid": API_KEY
         }).json()
 
-        aqi_value = aqi_raw["list"][0]["main"]["aqi"]
+        aqi = aqi_raw.get("list", [{}])[0].get("main", {}).get("aqi", 0)
 
-        # ------- FINAL RESPONSE -------
         return jsonify({
             "current": {
                 "name": current["name"],
@@ -268,17 +246,16 @@ def get_weather():
                 "humidity": current["main"]["humidity"],
                 "wind_speed": current["wind"]["speed"],
                 "pressure": current["main"]["pressure"],
-                "aqi": aqi_value
+                "aqi": aqi
             },
-            "forecast": daily
+            "forecast": forecast
         })
 
     except Exception as e:
         return jsonify({"error": f"Unexpected server error: {e}"}), 500
 
-
-# ----------------------------------------------------
-# RUN APP
-# ----------------------------------------------------
+# ====================================================
+# RUN
+# ====================================================
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
