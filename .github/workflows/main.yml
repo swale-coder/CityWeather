@@ -2,41 +2,62 @@ name: Python CI with SonarCloud
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+      # --------------------------------------------------
+      # Checkout the repository
+      # --------------------------------------------------
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # --------------------------------------------------
+      # Setup Python
+      # --------------------------------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.9"
 
+      # --------------------------------------------------
+      # Install dependencies
+      # --------------------------------------------------
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov coverage
+          pip install pytest pytest-cov coverage requests
 
+      # --------------------------------------------------
+      # Set PYTHONPATH
+      # --------------------------------------------------
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$(pwd)" >> $GITHUB_ENV
 
+      # --------------------------------------------------
+      # Run tests with coverage
+      # --------------------------------------------------
       - name: Run Tests with Coverage
         run: |
           pytest --cov=. --cov-report=xml --cov-report=term
 
+      # --------------------------------------------------
+      # Display coverage report
+      # --------------------------------------------------
       - name: Display Coverage Report
         run: coverage report
 
+      # --------------------------------------------------
+      # Enforce minimum coverage 80%
+      # --------------------------------------------------
       - name: Enforce Minimum Coverage 80%
         run: |
           total=$(coverage report | grep TOTAL | awk '{print $4}' | sed 's/%//')
@@ -48,8 +69,11 @@ jobs:
             echo "✅ Coverage requirement met ($total%)"
           fi
 
+      # --------------------------------------------------
+      # SonarCloud scan
+      # --------------------------------------------------
       - name: SonarCloud Scan
-        uses: sonarsource/sonarqube-scan-action@v2
+        uses: sonarsource/sonarcloud-scan-action@v3
         with:
           args: >
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
