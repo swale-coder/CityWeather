@@ -2,9 +2,9 @@ name: Python CI with SonarCloud
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   build:
@@ -12,7 +12,7 @@ jobs:
 
     steps:
       # --------------------------------------------------
-      # Checkout the repository
+      # Checkout repository
       # --------------------------------------------------
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0
 
       # --------------------------------------------------
-      # Setup Python
+      # Set up Python
       # --------------------------------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -34,10 +34,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov coverage requests
+          pip install pytest pytest-cov coverage
 
       # --------------------------------------------------
-      # Set PYTHONPATH
+      # Set PYTHONPATH for tests
       # --------------------------------------------------
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$(pwd)" >> $GITHUB_ENV
@@ -73,7 +73,7 @@ jobs:
       # SonarCloud scan
       # --------------------------------------------------
       - name: SonarCloud Scan
-        uses: sonarsource/sonarcloud-scan-action@v3
+        uses: sonarsource/sonarcloud-github-action@v3
         with:
           args: >
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
